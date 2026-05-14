@@ -66,7 +66,7 @@ class Settings:
     )
     sonar_cls_path: str = os.getenv(
         "SONAR_CLS_PATH",
-        "./downloaded_assets/models/sonar/best.pt",
+        "./downloaded_assets/models/sonar_detector/best.pt",
     )
     fish_coral_cls_path: str = os.getenv(
         "FISH_CORAL_CLS_PATH",

@@ -1,32 +1,41 @@
-# Marine Image Retrieval API
+# OceanGPT-X
 
-A FastAPI-based marine image recognition service supporting:
-
-- FAISS retrieval with BioCLIP features
-- Multi-model result fusion with cross-validation
-- Sonar image and biological image (fish & coral) classification
+OceanGPT-X is an **intelligent marine image recognition service** under the OceanGPT project, providing a unified multi-model inference API for marine biology research, underwater robot vision, and sonar image interpretation. With one-click deployment, users can upload marine images via REST API or the Streamlit demo and receive species-level identification results.
 
 ## Architecture
 
-```
-Input Image
-  |
-  v
-[1] FAISS Retrieval (BioCLIP features, similarity >= 0.90 -> return directly)
-  |  No match
-  v
-[2] Router Binary Classifier (sonar / biological, YOLOv11-cls)
-  |
-  +-- sonar --> [3a] Sonar Classifier (15 classes, YOLOv5) -> fusion
-  |
-  +-- biological --> [3b] Fish/Coral Binary Classifier (YOLOv5)
-                          |
-                          +-- fish  -> Fish Detector (YOLOv5)  --+
-                          +-- coral -> Coral Detector (YOLOv5) --+-> fusion (+ OceanCLIP)
-  v
-[4] Fusion: cross-validate OceanCLIP species match with detector;
-            fall back to highest-confidence candidate
-```
+OceanGPT-X employs a **multi-model fusion inference** strategy, combining FAISS vector retrieval, OceanCLIP (a marine-adapted vision-language model fine-tuned from BioCLIP), and a suite of YOLOv5/YOLOv11-cls detection and classification models for efficient and accurate image recognition.
+
+### Inference Pipeline
+
+For each input image, the system processes as follows:
+
+1. **FAISS Vector Retrieval** — Uses BioCLIP pre-trained features to search the retrieval database. If similarity exceeds the threshold (default 0.90), returns the match directly, skipping further inference.
+2. **Router Classifier** — If no match is found, a YOLOv11-cls router model classifies the image as "sonar" or "biological".
+3. **Branch Inference**:
+   - **Sonar branch**: A YOLOv5 classifier categorizes sonar targets into 15 classes (e.g., side-scan sonar, multibeam, cube).
+   - **Biological branch**: A YOLOv5 fish/coral binary classifier determines the category, then either a fish detector or coral detector performs fine-grained species identification.
+4. **Cross-Validation Fusion** — In the biological branch, the detector result is cross-validated against OceanCLIP's Top-N matches at the genus level. If they agree, a fused result is output (source: `oceanclip+detector`); otherwise OceanCLIP takes priority; if OceanCLIP is unavailable, the detector result is used as fallback.
+
+### Overview
+
+![](figs/structure.png)
+
+## Models
+
+All model weights and data files are hosted in the [OceanGPT-X Collection](https://huggingface.co/collections/zjunlp/oceangpt-x) on Hugging Face:
+
+| Repository | Model File | Task | Architecture | Classes |
+|-----------|-----------|------|-------------|---------|
+| [zjunlp/Ocean-router](https://huggingface.co/zjunlp/Ocean-router) | `cls_bio_sonar/best.pt` | Sonar vs. Bio routing | YOLOv11-cls | 2 |
+| [zjunlp/Ocean-router](https://huggingface.co/zjunlp/Ocean-router) | `fish_coral_cls/best.pt` | Fish vs. Coral binary | YOLOv5 | 2 |
+| [zjunlp/Ocean-yolo](https://huggingface.co/zjunlp/Ocean-yolo) | `fish_detector/best.pt` | Fish species detection | YOLOv5 | Multi-class |
+| [zjunlp/Ocean-yolo](https://huggingface.co/zjunlp/Ocean-yolo) | `coral_detector/best.pt` | Coral species detection | YOLOv5 | Multi-class |
+| [zjunlp/Ocean-yolo](https://huggingface.co/zjunlp/Ocean-yolo) | `sonar_detector/best.pt` | Sonar target detection | YOLOv5 | 15 |
+| [zjunlp/OceanCLIP-0.15B](https://huggingface.co/zjunlp/OceanCLIP-0.15B) | `oceanclip-bio/epoch_50.pt` | Zero-shot species ID | CLIP (ViT-B/16) | Term-driven |
+| [zjunlp/OceanCLIP-0.15B](https://huggingface.co/zjunlp/OceanCLIP-0.15B) | `bioclip/open_clip_pytorch_model.bin` | BioCLIP base weights | CLIP (ViT-B/16) | — |
+| [zjunlp/Ocean-FAISS](https://huggingface.co/zjunlp/Ocean-FAISS) | `faiss/index.faiss` | FAISS retrieval index | — | — |
+| [zjunlp/Ocean-FAISS](https://huggingface.co/zjunlp/Ocean-FAISS) | `metadata/metadata.jsonl` | Image metadata (species, location, capture info) | — | — |
 
 ## Quick Start
 
@@ -42,20 +51,22 @@ conda activate marine-api
 Required for loading YOLOv5-format models (sonar, fish, coral):
 
 ```bash
-git clone https://github.com/ultralytics/yolov5 /path/to/yolov5
+git clone https://github.com/ultralytics/yolov5 ./yolov5
 ```
+
+Default clone to `./yolov5` for auto-detection. If using a different path, set the `YOLOV5_DIR` environment variable.
 
 ### 3. Download Models & Data
 
 All model weights and data files are hosted on Hugging Face:
-**[zhemaxiya/marine-image-api-models](https://huggingface.co/zhemaxiya/marine-image-api-models)**
+**[huggingface.co/collections/zjunlp/oceangpt-x](https://huggingface.co/collections/zjunlp/oceangpt-x)**
 
 ```bash
 python scripts/download_assets.py
 ```
 
 This downloads:
-- 7 model weights (Router, Sonar, Fish/Coral, Fish, Coral, OceanCLIP checkpoint + terms)
+- 7 model weights (Router, Sonar classifier, Fish/Coral binary, Fish detector, Coral detector, OceanCLIP checkpoint + terms)
 - BioCLIP base model for feature encoding
 - FAISS retrieval index
 - Metadata for image lookup
@@ -69,6 +80,8 @@ python scripts/download_assets.py --download-dir ./my-models
 ### 4. Configure Environment (Optional)
 
 All paths default to the `downloaded_assets/` directory created by the download script.
+**No manual configuration is required to start the service.**
+
 Only set environment variables if you use custom paths:
 
 ```bash
@@ -110,6 +123,8 @@ streamlit run streamlit/demo.py
 GET /health
 ```
 
+Returns the loading status of each model module.
+
 ### Prediction
 
 ```
@@ -139,6 +154,7 @@ Key environment variables:
 | `USE_OCEANCLIP` | `true` | Enable OceanCLIP species identification |
 | `TOPK` | `5` | Number of FAISS retrieval results |
 | `DEVICE` | `cuda` | Computation device (`cuda` or `cpu`) |
+| `YOLOV5_DIR` | `./yolov5` | YOLOv5 source directory |
 
 ## Project Structure
 
@@ -155,6 +171,15 @@ streamlit/
 test/           # Sample test images
 ```
 
+## Test Samples
+
+4 test images are provided in `test/`:
+
+- `test/coral_Acropora Cervicornis_1.png` — Coral (Acropora cervicornis)
+- `test/fish_Amphiprion_clarkii_62.png` — Fish (Amphiprion clarkii)
+- `test/soner_cube.png` — Sonar (cube)
+- `test/fish.png` — Out-of-domain fish (aquarium white background)
+
 ## Note
 
-This repository does not include model weights or data files. Download them via `scripts/download_assets.py` and configure paths in `.env`.
+This repository does not include model weights or data files. Download them via `scripts/download_assets.py`. All paths default to the download script's output directory — zero configuration needed.

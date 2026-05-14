@@ -8,7 +8,7 @@ from PIL import Image
 
 
 st.set_page_config(
-    page_title="Marine Image Recognition System Demo",
+    page_title="OceanGPT-X System Demo",
     page_icon=":ocean:",
     layout="wide",
 )
@@ -53,8 +53,7 @@ def bool_to_english(v: bool) -> str:
 def show_header():
     st.title("Marine Image Recognition System Demo")
     st.caption(
-        "Multi-model marine image recognition powered by "
-        "FastAPI + FAISS + YOLO + OceanCLIP"
+        "Knowledge-augmented multimodal ocean data understanding with OceanGPT-X, integrating proprietary models and OceanCLIP."
     )
 
 
@@ -73,22 +72,82 @@ def show_summary_cards(result: Dict[str, Any]) -> None:
 
     st.subheader("Recognition Result")
 
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
-    with col1:
-        st.metric("DB Hit", bool_to_english(bool(db_hit)))
-    with col2:
-        st.metric("Image Type", normalize_image_type(image_type))
-    with col3:
-        st.metric("Predicted Class", str(target_label), help=str(target_label))
-    with col4:
-        st.metric("Confidence", format_confidence(confidence))
-    with col5:
-        st.metric("Stage", str(stage))
+    # 使用容器和自定义CSS实现文本自动换行和缩放
+    st.markdown("""
+        <style>
+        .result-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .result-card {
+            flex: 1;
+            min-width: 150px;
+            background-color: #f0f2f6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        .result-card-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        .result-card-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+        }
+        @media (max-width: 768px) {
+            .result-card {
+                min-width: 120px;
+            }
+            .result-card-value {
+                font-size: 1rem;
+            }
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # 创建HTML容器
+    html_content = f"""
+    <div class="result-container">
+        <div class="result-card">
+            <div class="result-card-label">DB Hit</div>
+            <div class="result-card-value">{bool_to_english(bool(db_hit))}</div>
+        </div>
+        <div class="result-card">
+            <div class="result-card-label">Image Type</div>
+            <div class="result-card-value">{normalize_image_type(image_type)}</div>
+        </div>
+        <div class="result-card">
+            <div class="result-card-label">Predicted Class</div>
+            <div class="result-card-value">{str(target_label)}</div>
+        </div>
+        <div class="result-card">
+            <div class="result-card-label">Confidence</div>
+            <div class="result-card-value">{format_confidence(confidence)}</div>
+        </div>
+        <div class="result-card">
+            <div class="result-card-label">Stage</div>
+            <div class="result-card-value">{str(stage)}</div>
+        </div>
+    </div>
+    """
+    
+    st.markdown(html_content, unsafe_allow_html=True)
 
     display_text = final_result.get("display_text")
     if display_text:
         st.success(display_text)
-
 
 def step_status_text(has_data: bool, name: str) -> str:
     return f":white_check_mark: {name}" if has_data else f":o: {name}"
@@ -231,7 +290,7 @@ def main() -> None:
     show_header()
 
     with st.sidebar:
-        st.header("Settings")
+        st.header("Oceangpt-x")
         api_url = st.text_input("FastAPI Endpoint", value=DEFAULT_API_URL)
         show_raw_json = st.checkbox("Show Raw JSON", value=True)
 
@@ -239,7 +298,7 @@ def main() -> None:
         st.markdown("### How It Works")
         st.write("1. Upload a marine image")
         st.write("2. Click \"Run Recognition\" to call the FastAPI endpoint")
-        st.write("3. View retrieval match or multi-model fusion results")
+        st.write("3. View OceanGPT-X results")
 
     uploaded_file = st.file_uploader(
         "Upload an image for recognition",
@@ -253,31 +312,30 @@ def main() -> None:
     image_bytes = uploaded_file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-    left, right = st.columns([1, 1.25])
+    
+    st.subheader("Original Image")
+    st.image(image, use_container_width=True)
+    
+    st.divider()
+    
+    st.subheader("Run Recognition")
+    run_button = st.button("Run Recognition", type="primary", use_container_width=True)
 
-    with left:
-        st.subheader("Original Image")
-        st.image(image, use_container_width=True)
+    if run_button:
+        with st.spinner("Running model inference, please wait..."):
+            try:
+                result = call_predict_api(
+                    api_url=api_url,
+                    image_bytes=image_bytes,
+                    filename=uploaded_file.name
+                )
+                st.success("Recognition complete")
+                show_result_panel(image, result, show_raw_json)
 
-    with right:
-        st.subheader("Run Recognition")
-        run_button = st.button("Run Recognition", type="primary", use_container_width=True)
-
-        if run_button:
-            with st.spinner("Running model inference, please wait..."):
-                try:
-                    result = call_predict_api(
-                        api_url=api_url,
-                        image_bytes=image_bytes,
-                        filename=uploaded_file.name
-                    )
-                    st.success("Recognition complete")
-                    show_result_panel(image, result, show_raw_json)
-
-                except requests.exceptions.RequestException as e:
-                    st.error(f"API call failed: {e}")
-                except Exception as e:
-                    st.error(f"Processing failed: {e}")
+            except requests.exceptions.RequestException as e:
+                st.error(f"API call failed: {e}")
+            except Exception as e:
+                st.error(f"Processing failed: {e}")
 
 
 if __name__ == "__main__":
