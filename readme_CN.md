@@ -2,7 +2,7 @@
 
 OceanGPT-X 是隶属于 OceanGPT 项目的**海洋图像智能识别服务**，面向海洋生物研究、水下机器人视觉、声呐图像解译等场景提供多模态、多模型的统一推理 API。用户只需依次执行部署步骤，即可从一个完全没有环境依赖和模型安装的状态启动 API 服务，并通过 REST API 或 Web 前端界面上传海洋图像，获得物种级识别结果。
 
-![服务演示](figs/show.gif)
+![服务演示](https://github.com/OceanGPT/OceanGPT-X/blob/main/figs/api.gif)
 
 ## 架构与简介
 
