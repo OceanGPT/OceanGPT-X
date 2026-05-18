@@ -1,6 +1,8 @@
 # OceanGPT-X
 
-OceanGPT-X 是隶属于 OceanGPT 项目的**海洋图像智能识别服务**，面向海洋生物研究、水下机器人视觉、声呐图像解译等场景提供多模态、多模型的统一推理 API。用户只需一键部署，即可通过 REST API 或 Streamlit 演示界面上传海洋图像，获得物种级识别结果。
+OceanGPT-X 是隶属于 OceanGPT 项目的**海洋图像智能识别服务**，面向海洋生物研究、水下机器人视觉、声呐图像解译等场景提供多模态、多模型的统一推理 API。用户只需依次执行部署步骤，即可从一个完全没有环境依赖和模型安装的状态启动 API 服务，并通过 REST API 或 Web 前端界面上传海洋图像，获得物种级识别结果。
+
+![服务演示](figs/show.gif)
 
 ## 架构与简介
 
@@ -32,14 +34,18 @@ OceanGPT-X 采用**多模型融合推理**策略，结合 FAISS 向量检索、O
 | [zjunlp/Ocean-yolo](https://huggingface.co/zjunlp/Ocean-yolo) | `fish_detector/best.pt` | 鱼类物种检测 | YOLOv5 | 多类 |
 | [zjunlp/Ocean-yolo](https://huggingface.co/zjunlp/Ocean-yolo) | `coral_detector/best.pt` | 珊瑚物种检测 | YOLOv5 | 多类 |
 | [zjunlp/Ocean-yolo](https://huggingface.co/zjunlp/Ocean-yolo) | `sonar_detector/best.pt` | 声呐目标检测 | YOLOv5 | 15 |
-| [zjunlp/OceanCLIP-0.15B](https://huggingface.co/zjunlp/OceanCLIP-0.15B) | `oceanclip-bio/epoch_50.pt` | 海洋物种零_shot识别 | CLIP (ViT-B/16) | 术语表驱动 |
+| [zjunlp/OceanCLIP-0.15B](https://huggingface.co/zjunlp/OceanCLIP-0.15B) | `oceanclip-bio/epoch_50.pt` | 海洋物种零-shot识别 | CLIP (ViT-B/16) | 术语表驱动 |
 | [zjunlp/OceanCLIP-0.15B](https://huggingface.co/zjunlp/OceanCLIP-0.15B) | `bioclip/open_clip_pytorch_model.bin` | BioCLIP 基础权重（特征编码） | CLIP (ViT-B/16) | — |
 | [zjunlp/Ocean-FAISS](https://huggingface.co/zjunlp/Ocean-FAISS) | `faiss/index.faiss` | FAISS 检索索引 | — | — |
 | [zjunlp/Ocean-FAISS](https://huggingface.co/zjunlp/Ocean-FAISS) | `metadata/metadata.jsonl` | 图像元数据（物种、位置、采集信息） | — | — |
 
-## 部署方法
+## 部署并启动 API 服务
+
+依次执行以下步骤，你可以从一个没有任何环境依赖和模型安装的状态成功部署服务，并启动 API 接口。
 
 ### 1. 安装环境依赖
+
+创建并激活 conda 虚拟环境，安装所有 Python 依赖包：
 
 ```bash
 conda env create -f environment.yml
@@ -97,6 +103,8 @@ python scripts/download_assets.py --download-dir ./my-models
 
 ### 5. 启动服务
 
+启动 FastAPI 服务，监听 `0.0.0.0:8000`（端口号可在命令中修改，需与后续 API 调用时使用的端口保持一致）：
+
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
@@ -107,15 +115,21 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## Streamlit 演示界面
+启动成功后，服务将持续运行在 `http://localhost:8000`。
 
-启动交互式 Web 演示：
+## 启动 Web 前端服务
+
+服务提供基于 Streamlit 的交互式 Web 演示界面，方便用户直接上传图片并查看识别结果：
 
 ```bash
 streamlit run streamlit/demo.py
 ```
 
-## API 接口
+运行后在浏览器中打开提示的本地地址（通常为 `http://localhost:8501`）即可使用。
+
+## API 接口使用介绍
+
+本服务提供 RESTful API 接口。以下示例中使用的端口号 `8000` 需与启动服务时指定的 `--port` 参数保持一致。
 
 ### 健康检查
 
@@ -123,7 +137,7 @@ streamlit run streamlit/demo.py
 GET /health
 ```
 
-返回各模型模块的加载状态。
+返回各模型模块的加载状态，用于确认服务是否正常启动。
 
 ### 预测接口
 
@@ -141,9 +155,11 @@ POST /predict
 curl -X POST http://localhost:8000/predict -F "file=@test/soner_cube.png"
 ```
 
-或打开 `http://localhost:8000/docs` 查看交互式 API 文档。
+或打开 `http://localhost:8000/docs`（端口号需与启动时一致）查看交互式 API 文档，可直接在浏览器中上传测试图片。
 
 ## 配置说明
+
+所有配置通过环境变量管理，定义在 `app/core/config.py` 中。服务启动时会自动读取项目根目录下的 `.env` 文件（如果存在），也可以通过 `export` 命令在终端中临时设置。
 
 关键环境变量：
 

@@ -1,6 +1,8 @@
 # OceanGPT-X
 
-OceanGPT-X is an **intelligent marine image recognition service** under the OceanGPT project, providing a unified multi-model inference API for marine biology research, underwater robot vision, and sonar image interpretation. With one-click deployment, users can upload marine images via REST API or the Streamlit demo and receive species-level identification results.
+OceanGPT-X is an **intelligent marine image recognition service** under the OceanGPT project, providing a unified multi-model inference API for marine biology research, underwater robot vision, and sonar image interpretation. By following the steps below, you can go from a clean machine with no dependencies or models installed to a fully running API service — and start receiving species-level identification results for marine images via REST API or the Web frontend.
+
+![Service Demo](figs/show.gif)
 
 ## Architecture
 
@@ -37,9 +39,13 @@ All model weights and data files are hosted in the [OceanGPT-X Collection](https
 | [zjunlp/Ocean-FAISS](https://huggingface.co/zjunlp/Ocean-FAISS) | `faiss/index.faiss` | FAISS retrieval index | — | — |
 | [zjunlp/Ocean-FAISS](https://huggingface.co/zjunlp/Ocean-FAISS) | `metadata/metadata.jsonl` | Image metadata (species, location, capture info) | — | — |
 
-## Quick Start
+## Launch API Server
+
+Follow the steps below to deploy the service from scratch and start the API server.
 
 ### 1. Install Dependencies
+
+Create and activate a conda virtual environment with all Python dependencies:
 
 ```bash
 conda env create -f environment.yml
@@ -95,7 +101,9 @@ export THRESHOLD=0.85
 export TOPK=10
 ```
 
-### 5. Start the Service
+### 5. Start the Server
+
+Launch the FastAPI server, listening on `0.0.0.0:8000` (the port can be changed in the command below, and must match the port used in subsequent API calls):
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -107,15 +115,21 @@ Development mode with auto-reload:
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## Streamlit Demo
+Once started, the service runs at `http://localhost:8000`.
 
-Launch the interactive web demo:
+## Launch Web Frontend
+
+An interactive Streamlit web demo is provided for easy image upload and result viewing without using curl or code:
 
 ```bash
 streamlit run streamlit/demo.py
 ```
 
-## API Endpoints
+Open the local address shown in the terminal (typically `http://localhost:8501`) in your browser to start using it.
+
+## API Usage Guide
+
+This service provides a RESTful API. The port `8000` used in all examples below must match the `--port` value specified when starting the server.
 
 ### Health Check
 
@@ -123,7 +137,7 @@ streamlit run streamlit/demo.py
 GET /health
 ```
 
-Returns the loading status of each model module.
+Returns the loading status of each model module, useful for verifying the service started correctly.
 
 ### Prediction
 
@@ -141,9 +155,11 @@ POST /predict
 curl -X POST http://localhost:8000/predict -F "file=@test/soner_cube.png"
 ```
 
-Or open `http://localhost:8000/docs` for interactive API documentation.
+Or open `http://localhost:8000/docs` (port must match the server's `--port`) for interactive API documentation where you can upload test images directly in the browser.
 
 ## Configuration
+
+All configuration is managed via environment variables, defined in `app/core/config.py`. On startup, the service automatically reads `.env` from the project root if it exists. Variables can also be set temporarily via `export` in the terminal.
 
 Key environment variables:
 
