@@ -2,7 +2,7 @@
 
 OceanGPT-X is an **intelligent marine image recognition service** under the OceanGPT project, providing a unified multi-model inference API for marine biology research, underwater robot vision, and sonar image interpretation. By following the steps below, you can go from a clean machine with no dependencies or models installed to a fully running API service — and start receiving species-level identification results for marine images via REST API or the Web frontend.
 
-![Service Demo](https://github.com/OceanGPT/OceanGPT-X/blob/main/figs/api.gif)
+![Service Demo](https://github.com/OceanGPT/OceanGPT-X/blob/main/figs/show.gif)
 
 ## Architecture
 
